@@ -12,22 +12,22 @@ async function run() {
     // Get the download URL for the release
     const releaseUrl = `https://api.github.com/repos/apppackio/apppack/releases/${version}`;
     const data = await downloadJson(releaseUrl);
-    
+
     // Validate the API response
     if (!data || !data.tag_name) {
       throw new Error(
         `Failed to fetch release information for version '${version}'. ` +
-        `Please check if the version exists or try 'latest'.`
+          `Please check if the version exists or try 'latest'.`,
       );
     }
-    
+
     if (!data.assets || data.assets.length === 0) {
       throw new Error(
         `No assets found for release ${data.tag_name}. ` +
-        `This may be a draft release or the release process may have failed.`
+          `This may be a draft release or the release process may have failed.`,
       );
     }
-    
+
     // strip the leading "v" from the tag name
     version = data.tag_name.slice(1);
     // Determine the platform-specific asset name
@@ -42,7 +42,7 @@ async function run() {
 
     if (!asset) {
       throw new Error(
-        `Could not find AppPack CLI asset in release ${data.tag_name}`
+        `Could not find AppPack CLI asset in release ${data.tag_name}`,
       );
     }
 
@@ -57,7 +57,7 @@ async function run() {
       join(pathToCLI, "apppack"),
       "apppack",
       "apppack",
-      data.tag_name
+      data.tag_name,
     );
 
     // Add the AppPack CLI directory to the PATH
@@ -74,46 +74,52 @@ async function downloadJson(url) {
   return new Promise((resolve, reject) => {
     const headers = {
       "User-Agent": "apppackio/setup-apppack",
-      "Accept": "application/vnd.github+json"
+      Accept: "application/vnd.github+json",
     };
-    
+
     // Use GitHub token if available for higher rate limits
     const token = process.env.GITHUB_TOKEN;
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
-    
-    const req = https.get(
-      url,
-      { headers },
-      (res) => {
-        let data = "";
-        
-        // Check for non-success status codes
-        if (res.statusCode !== 200) {
-          if (res.statusCode === 404) {
-            reject(new Error(`Release not found (404). Please check if the version exists.`));
-          } else if (res.statusCode === 403) {
-            const rateLimitMsg = token 
-              ? `GitHub API rate limit exceeded (403). Even with authentication, you may have hit the limit.`
-              : `GitHub API rate limit exceeded (403). Consider setting GITHUB_TOKEN to increase rate limits from 60 to 5000 requests/hour.`;
-            reject(new Error(rateLimitMsg));
-          } else {
-            reject(new Error(`GitHub API request failed with status ${res.statusCode}`));
-          }
-          return;
+
+    const req = https.get(url, { headers }, (res) => {
+      let data = "";
+
+      // Check for non-success status codes
+      if (res.statusCode !== 200) {
+        if (res.statusCode === 404) {
+          reject(
+            new Error(
+              `Release not found (404). Please check if the version exists.`,
+            ),
+          );
+        } else if (res.statusCode === 403) {
+          const rateLimitMsg = token
+            ? `GitHub API rate limit exceeded (403). Even with authentication, you may have hit the limit.`
+            : `GitHub API rate limit exceeded (403). Consider setting GITHUB_TOKEN to increase rate limits from 60 to 5000 requests/hour.`;
+          reject(new Error(rateLimitMsg));
+        } else {
+          reject(
+            new Error(
+              `GitHub API request failed with status ${res.statusCode}`,
+            ),
+          );
         }
-        
-        res.on("data", (chunk) => (data += chunk));
-        res.on("end", () => {
-          try {
-            resolve(JSON.parse(data));
-          } catch (e) {
-            reject(new Error(`Failed to parse GitHub API response: ${e.message}`));
-          }
-        });
+        return;
       }
-    );
+
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(
+            new Error(`Failed to parse GitHub API response: ${e.message}`),
+          );
+        }
+      });
+    });
     req.on("error", (e) => {
       reject(new Error(`Network error accessing GitHub API: ${e.message}`));
     });
