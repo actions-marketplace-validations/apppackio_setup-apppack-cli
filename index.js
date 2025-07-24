@@ -72,9 +72,20 @@ async function run() {
 // Download a JSON file from a URL
 async function downloadJson(url) {
   return new Promise((resolve, reject) => {
+    const headers = {
+      "User-Agent": "apppackio/setup-apppack",
+      "Accept": "application/vnd.github+json"
+    };
+    
+    // Use GitHub token if available for higher rate limits
+    const token = process.env.GITHUB_TOKEN;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
     const req = https.get(
       url,
-      { headers: { "User-Agent": "apppackio/setup-apppack" } },
+      { headers },
       (res) => {
         let data = "";
         
@@ -82,6 +93,11 @@ async function downloadJson(url) {
         if (res.statusCode !== 200) {
           if (res.statusCode === 404) {
             reject(new Error(`Release not found (404). Please check if the version exists.`));
+          } else if (res.statusCode === 403) {
+            const rateLimitMsg = token 
+              ? `GitHub API rate limit exceeded (403). Even with authentication, you may have hit the limit.`
+              : `GitHub API rate limit exceeded (403). Consider setting GITHUB_TOKEN to increase rate limits from 60 to 5000 requests/hour.`;
+            reject(new Error(rateLimitMsg));
           } else {
             reject(new Error(`GitHub API request failed with status ${res.statusCode}`));
           }
